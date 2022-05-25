@@ -8,7 +8,7 @@ FROM ubuntu:22.04 AS env
 #############
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt update -qq \
-&& apt install -yq git wget build-essential lsb-release zlib1g-dev \
+&& apt install -yq git wget build-essential cmake lsb-release zlib1g-dev \
 && apt clean \
 && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 ENTRYPOINT ["/usr/bin/bash", "-c"]
@@ -65,17 +65,40 @@ ENV SRC_GIT_SHA1 ${SRC_GIT_SHA1:-unknown}
 RUN git clone -b "${SRC_GIT_BRANCH}" --single-branch https://github.com/google/or-tools \
 && echo "sha1: $(cd or-tools && git rev-parse --verify HEAD)" \
 && echo "expected sha1: ${SRC_GIT_SHA1}"
-
-# Build project
-FROM devel AS build
 WORKDIR /root/or-tools
 
-ARG BUILD_LANG
-ENV BUILD_LANG ${BUILD_LANG:-cpp}
+# C++
+## build
+FROM devel AS cpp_build
+RUN make detect_cpp \
+&& make cpp JOBS=4
+## archive
+FROM cpp_build AS cpp_archive
+RUN make archive_cpp
 
-RUN make detect_${BUILD_LANG} \
-&& make ${BUILD_LANG} JOBS=4
+# .Net
+## build
+FROM cpp_build AS dotnet_build
+RUN make detect_dotnet \
+&& make dotnet JOBS=4
+## archive
+FROM dotnet_build AS dotnet_archive
+RUN make archive_dotnet
 
-# Create archive
-FROM build AS archive
-RUN make archive_${BUILD_LANG}
+# Java
+## build
+FROM cpp_build AS java_build
+RUN make detect_java \
+&& make java JOBS=4
+## archive
+FROM java_build AS java_archive
+RUN make archive_java
+
+# Python
+## build
+FROM cpp_build AS python_build
+RUN make detect_python \
+&& make python JOBS=4
+## archive
+FROM python_build AS python_archive
+RUN make archive_python
