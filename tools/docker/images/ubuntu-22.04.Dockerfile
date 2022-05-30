@@ -80,7 +80,7 @@ RUN make archive_cpp
 ## build
 FROM cpp_build AS dotnet_build
 RUN make detect_dotnet \
-&& make dotnet JOBS=4
+&& make dotnet CMAKE_ARGS="-DUSE_DOTNET_TFM_31=OFF" JOBS=4
 ## archive
 FROM dotnet_build AS dotnet_archive
 RUN make archive_dotnet
